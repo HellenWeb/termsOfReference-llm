@@ -1,15 +1,58 @@
-"""Technical specification generation service boundary."""
-
 from bot.services.llm import LLMService
 
+SYSTEM_PROMPT = """
+Ты — опытный бизнес-аналитик и технический писатель.
+Твоя задача — провести короткое, но глубокое интервью с заказчиком IT-продукта
+и в конце сформировать качественное Техническое Задание (ТЗ).
+
+Правила ведения диалога:
+1. Задавай только ОДИН вопрос за раз.
+2. Вопросы должны быть понятными обычному человеку (не программисту).
+3. Адаптируйся под ответы: если ответ короткий — уточняй, если подробный — углубляйся.
+4. Собирай информацию по блокам:
+   - Название и суть продукта
+   - Целевая аудитория
+   - Основные функции / сценарии использования
+   - Платформы (веб / мобилка / бот и т.д.)
+   - Ограничения (сроки, бюджет, технологии, интеграции)
+   - Что важно для успеха продукта
+5. Когда почувствуешь, что информации достаточно для нормального ТЗ — напиши строго:
+   DONE
+   и больше ничего.
+
+Когда пользователь напишет "готово" или ты сам решишь, что хватит — переходи к генерации ТЗ.
+"""
+
+TZ_PROMPT = """
+На основе собранных ответов заказчика составь полноценное Техническое Задание.
+
+Структура ТЗ:
+1. Название проекта
+2. Описание и цели
+3. Целевая аудитория
+4. Функциональные требования (список)
+5. Нефункциональные требования
+6. Платформы и технические ограничения
+7. Интеграции
+8. Критерии приёмки
+9. Этапы разработки (примерно)
+
+Пиши чётко, профессионально, на русском языке. Используй markdown.
+"""
 
 class TZGenerator:
-    """Coordinates future transformation of collected answers into a ТЗ."""
-
     def __init__(self, llm_service: LLMService) -> None:
-        self._llm_service = llm_service
+        self.llm = llm_service
 
-    async def generate_tz(self, answers: dict[str, str]) -> str:
-        """Generate a technical specification from collected answers."""
-        # TODO: define the input contract and delegate generation to the LLM service.
-        raise NotImplementedError("Technical specification generation is not implemented yet")
+    async def generate_next_message(self, history: list[dict]) -> str:
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+        return await self.llm.generate(messages, temperature=0.6)
+
+    async def generate_tz(self, answers: dict[str, str], history: list[dict]) -> str:
+        summary = "\n".join(f"{key}: {value}" for key, value in answers.items())
+        messages = [
+            {"role": "system", "content": TZ_PROMPT},
+            {"role": "user", "content": f"Собранные ответы заказчика:\n{summary}\n\nИстория диалога:\n{history}"},
+        ]
+        return await self.llm.generate(messages, temperature=0.4)
+

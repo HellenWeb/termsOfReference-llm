@@ -6,6 +6,5 @@ router = Router(name=__name__)
 
 @router.message(Command("start"))
 async def start_handler(message):
-    await message.answer(f"Здравствуйте! {message.from_user.first_name}, этот бот поможет вам написать грамотное техническое задание для вашего проекта. Чтобы начать, нажмите кнопку ниже.", reply_markup=InlineForStartKeyboard())
+    await message.answer(f"Здравствуйте <strong>{message.from_user.first_name}</strong> 🤙🫀!\n\nЭтот бот поможет вам написать грамотное техническое задание для вашего проекта. Чтобы начать проходить интервью, нажмите кнопку ниже. 🫰", reply_markup=InlineForStartKeyboard(), parse_mode="HTML")
 
-# TODO: implement the /start handler and introduce users to the dialogue.
