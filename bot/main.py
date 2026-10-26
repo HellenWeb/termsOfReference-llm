@@ -1,6 +1,6 @@
 import asyncio
 from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.redis import RedisStorage
 
 from bot.config import get_settings
 from bot.handlers.dialogue import router as dialogue_router
@@ -11,7 +11,7 @@ async def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    storage = MemoryStorage()                    # ← обязательно
+    storage = RedisStorage.from_url(settings.redis_url)
     bot = Bot(token=settings.bot_token.get_secret_value())
     dispatcher = Dispatcher(storage=storage)     # ← передаём storage
 

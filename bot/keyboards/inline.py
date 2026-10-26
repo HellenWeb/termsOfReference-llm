@@ -1,5 +1,9 @@
 from aiogram.types import InlineKeyboardMarkup
 
+# DELETE
+
+balance = 0
+
 
 def InlineForStartKeyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
@@ -18,8 +22,16 @@ def InlineForStartKeyboard() -> InlineKeyboardMarkup:
                 {
                     "text": "👁 Поддержка",
                     "url": "https://t.me/YungHellen"
-                }
-            ]
+                },
+            ],
+            [
+                {
+                    "text": "Профиль",
+                    "callback_data": "profile"
+                },
+                {
+                    "text": f"Баланс: {balance}",
+                },
+            ],
         ]
-        
     )
