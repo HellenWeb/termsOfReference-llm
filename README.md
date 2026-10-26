@@ -85,6 +85,65 @@ bot/
 tests/              # Тесты проекта
 ```
 
+## 🏗️ Масштабируемая архитектура
+
+Проект постепенно разделяется на четыре слоя:
+
+- **Presentation** — aiogram routers, FSM, клавиатуры и Telegram-ответы.
+- **Application** — сценарии `CreditService` и `GenerationService`; здесь нет SQL или Redis-кода.
+- **Domain** — статусы, контракты портов и модели предметной области.
+- **Infrastructure** — SQLAlchemy/PostgreSQL, Redis, arq, платежный провайдер и LLM-адаптеры.
+
+Новые заготовки находятся в `bot/domain/`, `bot/application/`, `bot/infrastructure/` и `bot/workers/`.
+
+### Поток генерации
+
+```mermaid
+sequenceDiagram
+    participant U as Пользователь
+    participant B as aiogram bot
+    participant DB as PostgreSQL
+    participant R as Redis/arq
+    participant W as Worker
+    participant L as LLM API
+
+    U->>B: Завершает интервью
+    B->>DB: Проверяет пользователя и списывает кредит
+    B->>DB: Создаёт GenerationTask (pending)
+    B->>R: Публикует task_id
+    B-->>U: Задача принята
+    W->>R: Берёт задачу
+    W->>DB: status = processing
+    W->>L: Выполняет LLM-запрос
+    W->>DB: Сохраняет результат и status = completed/failed
+    W-->>U: Отправляет уведомление и документы
+```
+
+### Почему PostgreSQL + Redis + arq
+
+- **PostgreSQL + SQLAlchemy 2 async** — транзакции, история кредитов, платежей и генераций.
+- **Redis** — распределённое FSM-хранилище и быстрый брокер фоновых задач.
+- **arq** — лёгкая asyncio-очередь, естественно сочетающаяся с aiogram и async SQLAlchemy.
+- **ЮKassa** — основной платёжный адаптер для РФ; интерфейс `PaymentProvider` оставляет возможность добавить Telegram Payments или Stripe.
+
+Worker запускается отдельно:
+
+```bash
+python -m bot.workers.run
+```
+
+Текущие `GenerationTask` и `YooKassaProvider` намеренно являются скелетом: списание, webhook-проверка, генерация документов и уведомления должны быть реализованы отдельными этапами.
+
+## 🛣️ Roadmap
+
+1. Подключить PostgreSQL, Alembic и миграции; реализовать регистрацию пользователя.
+2. Завершить атомарные операции кредитов и историю транзакций.
+3. Перенести FSM с Redis в production-конфигурацию и вынести worker в отдельный процесс.
+4. Реализовать `GenerationTask`: статусы, retry, идемпотентность и хранение результатов.
+5. Добавить объектное хранилище для DOCX/PDF и уведомления пользователя.
+6. Подключить ЮKassa, webhook и выдачу кредитов после подтверждённой оплаты.
+7. Добавить личный кабинет, мониторинг, метрики, rate limits и горизонтальное масштабирование.
+
 ## ⚠️ Примечания
 
 - Для работы нужны действующие Telegram Bot Token и API-ключ LLM-провайдера.
