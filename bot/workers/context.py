@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from arq.connections import RedisSettings
 from bot.config import Settings
+from functools import lru_cache
 
 
 @dataclass(slots=True)
@@ -17,3 +18,7 @@ async def startup(ctx: dict) -> None:
 async def shutdown(ctx: dict) -> None:
     # TODO: close DB, HTTP, and object-storage clients.
     ctx.pop("dependencies", None)
+
+@lru_cache(maxsize=1)
+async def get_settings(ctx: dict) -> Settings:
+    return ctx["dependencies"].settings

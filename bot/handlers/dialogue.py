@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import logging
@@ -16,11 +17,56 @@ from bot.states.dialogue import DialogueStates
 router = Router(name=__name__)
 logger = logging.getLogger(__name__)
 
+# Шрифт лежит в репозитории, поэтому не зависим от того, установлен ли
+# DejaVu Sans в системе (в Docker-образе без fonts-dejavu раньше падало с FileNotFoundError)
+_FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
 
-def _save_tz_files(tz_text: str, output_dir: Path) -> tuple[Path, Path]:
-    docx_path = output_dir / "technical_specification.docx"
-    pdf_path = output_dir / "technical_specification.pdf"
+# Разбивает инлайн-markdown строки на фрагменты с форматированием:
+# **жирный**, *курсив* (а также __жирный__ и _курсив_)
+_INLINE_PATTERN = re.compile(
+    r"\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_"
+)
 
+
+def _parse_inline_markdown(text: str) -> list[tuple[str, bool, bool]]:
+    """Возвращает список (фрагмент_текста, bold, italic) для строки с инлайн-markdown."""
+    runs: list[tuple[str, bool, bool]] = []
+    pos = 0
+    for match in _INLINE_PATTERN.finditer(text):
+        if match.start() > pos:
+            runs.append((text[pos:match.start()], False, False))
+        bold_double, bold_underscore, italic_star, italic_underscore = match.groups()
+        if bold_double is not None:
+            runs.append((bold_double, True, False))
+        elif bold_underscore is not None:
+            runs.append((bold_underscore, True, False))
+        elif italic_star is not None:
+            runs.append((italic_star, False, True))
+        else:
+            runs.append((italic_underscore, False, True))
+        pos = match.end()
+    if pos < len(text):
+        runs.append((text[pos:], False, False))
+    return runs
+
+
+def _strip_list_prefix(line: str) -> tuple[str, bool]:
+    """Убирает маркер списка ("- "/"* ") и сообщает, был ли он найден."""
+    if line.startswith("- ") or line.startswith("* "):
+        return line[2:], True
+    return line, False
+
+
+def _render_docx_line(doc: Document, line: str) -> None:
+    text, is_list_item = _strip_list_prefix(line)
+    paragraph = doc.add_paragraph(style="List Bullet" if is_list_item else None)
+    for run_text, bold, italic in _parse_inline_markdown(text):
+        run = paragraph.add_run(run_text)
+        run.bold = bold
+        run.italic = italic
+
+
+def _save_as_docx(tz_text: str, docx_path: Path) -> None:
     doc = Document()
     doc.add_heading("Техническое задание", level=0)
     for line in tz_text.splitlines():
@@ -34,42 +80,66 @@ def _save_tz_files(tz_text: str, output_dir: Path) -> tuple[Path, Path]:
         elif line.startswith("# "):
             doc.add_heading(line[2:], level=1)
         else:
-            doc.add_paragraph(line.removeprefix("- ").removeprefix("* "))
+            _render_docx_line(doc, line)
     doc.save(docx_path)
 
+
+def _register_pdf_fonts(pdf: FPDF) -> None:
+    pdf.add_font("Unicode", "", str(_FONTS_DIR / "DejaVuSans.ttf"))
+    pdf.add_font("Unicode", "B", str(_FONTS_DIR / "DejaVuSans-Bold.ttf"))
+    pdf.add_font("Unicode", "I", str(_FONTS_DIR / "DejaVuSans-Oblique.ttf"))
+    pdf.add_font("Unicode", "BI", str(_FONTS_DIR / "DejaVuSans-BoldOblique.ttf"))
+
+
+def _render_pdf_line(pdf: FPDF, line: str, *, h: float) -> None:
+    text, is_list_item = _strip_list_prefix(line)
+    if is_list_item:
+        text = f"• {text}"
+    pdf.set_x(pdf.l_margin)
+    # markdown=True включает встроенную в fpdf2 обработку **bold**/*italic*
+    pdf.multi_cell(w=pdf.epw, h=h, text=text, markdown=True)
+
+
+def _save_as_pdf(tz_text: str, pdf_path: Path) -> None:
     pdf = FPDF(format="A4")
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    font_candidates = (
-        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-        Path("/usr/share/fonts/dejavu/DejaVuSans.ttf"),
-        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
-        Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
-        Path("/Library/Fonts/Arial.ttf"),
-        Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
-    )
-    font_path = next((path for path in font_candidates if path.exists()), None)
-    if font_path is None:
-        raise FileNotFoundError(
-            "Не найден Unicode-шрифт для PDF. Установите DejaVu Sans "
-            "(пакет fonts-dejavu-core) или добавьте путь к TTF в font_candidates."
-        )
-    pdf.add_font("Unicode", "", str(font_path))
+    _register_pdf_fonts(pdf)
     pdf.set_font("Unicode", size=11)
+
+    pdf.set_font("Unicode", style="B", size=16)
     pdf.set_x(pdf.l_margin)
-    pdf.multi_cell(w=pdf.epw, h=8, text="Техническое задание")
+    pdf.multi_cell(w=pdf.epw, h=10, text="Техническое задание")
     pdf.ln(3)
+    pdf.set_font("Unicode", size=11)
+
     for line in tz_text.splitlines():
         line = line.strip()
-        if line:
-            pdf.set_x(pdf.l_margin)
-            pdf.multi_cell(
-                w=pdf.epw,
-                h=7,
-                text=line.removeprefix("- ").removeprefix("* "),
-            )
+        if not line:
+            continue
+        if line.startswith("### "):
+            pdf.set_font("Unicode", style="B", size=12)
+            _render_pdf_line(pdf, line[4:], h=8)
+            pdf.set_font("Unicode", size=11)
+        elif line.startswith("## "):
+            pdf.set_font("Unicode", style="B", size=13)
+            _render_pdf_line(pdf, line[3:], h=8)
+            pdf.set_font("Unicode", size=11)
+        elif line.startswith("# "):
+            pdf.set_font("Unicode", style="B", size=15)
+            _render_pdf_line(pdf, line[2:], h=9)
+            pdf.set_font("Unicode", size=11)
+        else:
+            _render_pdf_line(pdf, line, h=7)
     pdf.output(str(pdf_path))
+
+
+def _save_tz_files(tz_text: str, output_dir: Path) -> tuple[Path, Path]:
+    docx_path = output_dir / "technical_specification.docx"
+    pdf_path = output_dir / "technical_specification.pdf"
+    _save_as_docx(tz_text, docx_path)
+    _save_as_pdf(tz_text, pdf_path)
     return docx_path, pdf_path
 
 def get_tz_generator() -> TZGenerator:

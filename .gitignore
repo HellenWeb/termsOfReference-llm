@@ -1,8 +1,13 @@
 .env
+.env.*
+!.env.example
 .venv/
 venv/
+env/
+CLAUDE.md
 __pycache__/
 *.py[cod]
+*.so
 *.egg-info/
 .pytest_cache/
 .mypy_cache/
@@ -11,3 +16,5 @@ dist/
 build/
 .coverage
 htmlcov/
+*.log
+.DS_Store

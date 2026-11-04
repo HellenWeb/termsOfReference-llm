@@ -1,6 +1,5 @@
 from arq import Worker
 from arq.connections import RedisSettings
-
 from bot.config import get_settings
 from bot.workers.context import shutdown, startup
 from bot.workers.generation import generate_tz_task

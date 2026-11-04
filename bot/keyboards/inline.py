@@ -1,8 +1,5 @@
 from aiogram.types import InlineKeyboardMarkup
 
-# DELETE
-
-balance = 0
 
 
 def InlineForStartKeyboard() -> InlineKeyboardMarkup:
@@ -28,10 +25,7 @@ def InlineForStartKeyboard() -> InlineKeyboardMarkup:
                 {
                     "text": "Профиль",
                     "callback_data": "profile"
-                },
-                {
-                    "text": f"Баланс: {balance}",
-                },
+                }
             ],
         ]
     )

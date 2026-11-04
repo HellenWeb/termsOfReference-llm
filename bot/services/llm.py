@@ -16,8 +16,7 @@ class OpenAICompatibleLLMService(LLMService):
             model=self._model,
             messages=messages,
             temperature=temperature,
-            timeout=60,
-            max_retries=2
+            timeout=60
         )
         return responce.choices[0].message.content.strip()
 
