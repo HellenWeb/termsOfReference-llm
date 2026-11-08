@@ -1,19 +1,19 @@
 from datetime import datetime
 from decimal import Decimal
-from uuid import UUID, uuid4
-
+from uuid import uuid4
 from sqlalchemy import BigInteger, ForeignKey, Integer, JSON, Numeric, String, Text
 from sqlalchemy import DateTime, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from bot.domain.enums import CreditTransactionType, GenerationStatus, PaymentStatus
 from bot.infrastructure.db.base import Base, TimestampMixin
+
+_UUID_LEN = 36
 
 
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String(255))
     first_name: Mapped[str | None] = mapped_column(String(255))
@@ -26,10 +26,12 @@ class User(TimestampMixin, Base):
 class CreditTransaction(TimestampMixin, Base):
     __tablename__ = "credit_transactions"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[str] = mapped_column(String(_UUID_LEN), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     amount: Mapped[int] = mapped_column(Integer)
-    transaction_type: Mapped[CreditTransactionType] = mapped_column(SAEnum(CreditTransactionType))
+    transaction_type: Mapped[CreditTransactionType] = mapped_column(
+        SAEnum(CreditTransactionType, native_enum=False)
+    )
     idempotency_key: Mapped[str] = mapped_column(String(255), unique=True)
     description: Mapped[str | None] = mapped_column(Text)
     user: Mapped[User] = relationship(back_populates="credit_transactions")
@@ -38,9 +40,11 @@ class CreditTransaction(TimestampMixin, Base):
 class GenerationTask(TimestampMixin, Base):
     __tablename__ = "generation_tasks"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[str] = mapped_column(String(_UUID_LEN), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    status: Mapped[GenerationStatus] = mapped_column(SAEnum(GenerationStatus), default=GenerationStatus.PENDING)
+    status: Mapped[GenerationStatus] = mapped_column(
+        SAEnum(GenerationStatus, native_enum=False), default=GenerationStatus.PENDING
+    )
     input_payload: Mapped[dict] = mapped_column(JSON)
     result_url: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
@@ -52,10 +56,12 @@ class GenerationTask(TimestampMixin, Base):
 class Payment(TimestampMixin, Base):
     __tablename__ = "payments"
 
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    id: Mapped[str] = mapped_column(String(_UUID_LEN), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     provider: Mapped[str] = mapped_column(String(64))
     telegram_payment_charge_id: Mapped[str] = mapped_column(String(255), unique=True)
-    status: Mapped[PaymentStatus] = mapped_column(SAEnum(PaymentStatus), default=PaymentStatus.PENDING)
+    status: Mapped[PaymentStatus] = mapped_column(
+        SAEnum(PaymentStatus, native_enum=False), default=PaymentStatus.PENDING
+    )
     stars: Mapped[int] = mapped_column(Integer)
     credits: Mapped[int] = mapped_column(Integer)

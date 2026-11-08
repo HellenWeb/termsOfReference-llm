@@ -16,13 +16,7 @@ from bot.states.dialogue import DialogueStates
 
 router = Router(name=__name__)
 logger = logging.getLogger(__name__)
-
-# Шрифт лежит в репозитории, поэтому не зависим от того, установлен ли
-# DejaVu Sans в системе (в Docker-образе без fonts-dejavu раньше падало с FileNotFoundError)
 _FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
-
-# Разбивает инлайн-markdown строки на фрагменты с форматированием:
-# **жирный**, *курсив* (а также __жирный__ и _курсив_)
 _INLINE_PATTERN = re.compile(
     r"\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_"
 )
@@ -96,7 +90,6 @@ def _render_pdf_line(pdf: FPDF, line: str, *, h: float) -> None:
     if is_list_item:
         text = f"• {text}"
     pdf.set_x(pdf.l_margin)
-    # markdown=True включает встроенную в fpdf2 обработку **bold**/*italic*
     pdf.multi_cell(w=pdf.epw, h=h, text=text, markdown=True)
 
 

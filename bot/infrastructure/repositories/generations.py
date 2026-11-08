@@ -1,4 +1,3 @@
-from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from bot.domain.enums import GenerationStatus
 from bot.domain.models import GenerationTaskData
@@ -24,7 +23,7 @@ class SqlAlchemyGenerationRepository:
         error_message: str | None = None,
         result_url: str | None = None,
     ) -> None:
-        task = await self._session.get(GenerationTask, UUID(task_id))
+        task = await self._session.get(GenerationTask, task_id)
         if task is None:
             raise LookupError(f"Generation task {task_id} not found")
         task.status = status

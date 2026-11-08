@@ -1,7 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup
 
 
-
 def InlineForStartKeyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -25,7 +24,23 @@ def InlineForStartKeyboard() -> InlineKeyboardMarkup:
                 {
                     "text": "Профиль",
                     "callback_data": "profile"
-                }
+                },
             ],
+        ]
+    )
+
+def InlineForProfileKeyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                {
+                    "text": "Пополнить кредиты",
+                    "callback_data": "top_up_credits"
+                },
+                {
+                    "text": "Back <-",
+                    "callback_data": "back"
+                },
+            ]
         ]
     )

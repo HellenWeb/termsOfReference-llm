@@ -18,3 +18,10 @@ build/
 htmlcov/
 *.log
 .DS_Store
+# SQLite: сама БД и её WAL/SHM-файлы не должны попадать в репозиторий
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.db-*

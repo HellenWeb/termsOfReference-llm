@@ -24,6 +24,8 @@
 | **python-dotenv** | Чтение настроек из файла `.env` |
 | **python-docx** | Создание документа DOCX |
 | **fpdf2** | Создание PDF-документа |
+| **SQLAlchemy 2 (async) + SQLite** | Хранение пользователей, кредитов, платежей и задач генерации |
+| **Alembic** | Миграции схемы БД |
 
 ## 🚀 Быстрый запуск
 
@@ -55,10 +57,19 @@ cp .env.example .env
 | `LLM_MODEL` | Идентификатор модели провайдера |
 | `LOG_LEVEL` | Уровень логирования, например `INFO` или `DEBUG` |
 | `ENVIRONMENT` | Название окружения, например `development` |
+| `DATABASE_URL` | Путь к файлу SQLite, например `sqlite+aiosqlite:///./data/app.db` |
 
 Не публикуйте `.env` и не добавляйте реальные ключи в репозиторий.
 
-### 3. Запустите бота
+### 3. Примените миграции
+
+Файл БД создаётся автоматически при первом подключении — отдельно создавать его не нужно, достаточно каталога `data/` (он уже есть в репозитории).
+
+```bash
+alembic upgrade head
+```
+
+### 4. Запустите бота
 
 ```bash
 python -m bot.main
@@ -92,7 +103,7 @@ tests/              # Тесты проекта
 - **Presentation** — aiogram routers, FSM, клавиатуры и Telegram-ответы.
 - **Application** — сценарии `CreditService` и `GenerationService`; здесь нет SQL или Redis-кода.
 - **Domain** — статусы, контракты портов и модели предметной области.
-- **Infrastructure** — SQLAlchemy/PostgreSQL, Redis, arq, платежный провайдер и LLM-адаптеры.
+- **Infrastructure** — SQLAlchemy/SQLite, Redis, arq, платежный провайдер и LLM-адаптеры.
 
 Новые заготовки находятся в `bot/domain/`, `bot/application/`, `bot/infrastructure/` и `bot/workers/`.
 
@@ -102,7 +113,7 @@ tests/              # Тесты проекта
 sequenceDiagram
     participant U as Пользователь
     participant B as aiogram bot
-    participant DB as PostgreSQL
+    participant DB as SQLite
     participant R as Redis/arq
     participant W as Worker
     participant L as LLM API
@@ -119,12 +130,14 @@ sequenceDiagram
     W-->>U: Отправляет уведомление и документы
 ```
 
-### Почему PostgreSQL + Redis + arq
+### Почему SQLite + Redis + arq
 
-- **PostgreSQL + SQLAlchemy 2 async** — транзакции, история кредитов, платежей и генераций.
+- **SQLite + SQLAlchemy 2 async (aiosqlite)** — транзакции, история кредитов, платежей и генераций; не требует отдельного сервера БД.
 - **Redis** — распределённое FSM-хранилище и быстрый брокер фоновых задач.
 - **arq** — лёгкая asyncio-очередь, естественно сочетающаяся с aiogram и async SQLAlchemy.
 - **ЮKassa** — основной платёжный адаптер для РФ; интерфейс `PaymentProvider` оставляет возможность добавить Telegram Payments или Stripe.
+
+SQLite пишет в один файл и не рассчитан на высокую конкурентную запись — при росте нагрузки на одновременные списания кредитов стоит вернуться к серверной БД (PostgreSQL).
 
 Worker запускается отдельно:
 
@@ -136,7 +149,7 @@ python -m bot.workers.run
 
 ## 🛣️ Roadmap
 
-1. Подключить PostgreSQL, Alembic и миграции; реализовать регистрацию пользователя.
+1. Подключить SQLite, Alembic и миграции; реализовать регистрацию пользователя.
 2. Завершить атомарные операции кредитов и историю транзакций.
 3. Перенести FSM с Redis в production-конфигурацию и вынести worker в отдельный процесс.
 4. Реализовать `GenerationTask`: статусы, retry, идемпотентность и хранение результатов.
