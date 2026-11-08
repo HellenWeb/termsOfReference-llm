@@ -1,164 +1,76 @@
-# 📋 Terms Of Reference — with GPT
+# Terms Of Reference
 
-> Telegram-бот, который помогает заказчику описать идею IT-продукта и получить основу технического задания (ТЗ).
+Telegram-бот, который проводит интервью с заказчиком и генерирует техническое задание через LLM.
+Результат выгружается в DOCX и PDF и отправляется в чат.
 
-Бот проводит короткое интервью: задаёт вопросы по одному, собирает ответы и передаёт их языковой модели. Готовый документ отправляется в Telegram в форматах **DOCX** и **PDF**.
+## Стек
 
-## ✨ Возможности
+- Python 3.11+, aiogram 3
+- OpenAI SDK (любой OpenAI-совместимый API)
+- SQLAlchemy 2 async + SQLite (aiosqlite), Alembic
+- Redis + arq (фоновый воркер)
+- python-docx, fpdf2
 
-- 💬 Диалог с пользователем через Telegram
-- 🧭 Сбор требований по этапам с помощью FSM aiogram
-- 🤖 Подключение к OpenAI-совместимому API языковой модели
-- 📝 Формирование технического задания на русском языке
-- 📄 Экспорт результата в DOCX и PDF
-- ⚙️ Настройка токенов, модели и адреса API через `.env`
-
-## 🧰 Технологии
-
-| Технология | Назначение |
-| --- | --- |
-| **Python 3.11+** | Язык приложения |
-| **aiogram 3** | Telegram Bot API, маршрутизация и FSM |
-| **OpenAI Python SDK** | Асинхронные запросы к OpenAI-совместимому API |
-| **Pydantic Settings** | Загрузка и проверка настроек из окружения |
-| **python-dotenv** | Чтение настроек из файла `.env` |
-| **python-docx** | Создание документа DOCX |
-| **fpdf2** | Создание PDF-документа |
-| **SQLAlchemy 2 (async) + SQLite** | Хранение пользователей, кредитов, платежей и задач генерации |
-| **Alembic** | Миграции схемы БД |
-
-## 🚀 Быстрый запуск
-
-### 1. Подготовьте окружение
+## Быстрый старт
 
 ```bash
 git clone https://github.com/HellenWeb/termsOfReference-llm.git
 cd termsOfReference-llm
 python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements.txt
-```
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
-В Windows активируйте окружение командой `.venv\Scripts\activate`.
-
-### 2. Настройте переменные окружения
-
-Скопируйте пример настроек и заполните значения:
-
-```bash
-cp .env.example .env
-```
-
-| Переменная | Описание |
-| --- | --- |
-| `BOT_TOKEN` | Токен Telegram-бота, созданного через [@BotFather](https://t.me/BotFather) |
-| `LLM_API_KEY` | API-ключ выбранного LLM-провайдера |
-| `LLM_BASE_URL` | Базовый URL OpenAI-совместимого API |
-| `LLM_MODEL` | Идентификатор модели провайдера |
-| `LOG_LEVEL` | Уровень логирования, например `INFO` или `DEBUG` |
-| `ENVIRONMENT` | Название окружения, например `development` |
-| `DATABASE_URL` | Путь к файлу SQLite, например `sqlite+aiosqlite:///./data/app.db` |
-
-Не публикуйте `.env` и не добавляйте реальные ключи в репозиторий.
-
-### 3. Примените миграции
-
-Файл БД создаётся автоматически при первом подключении — отдельно создавать его не нужно, достаточно каталога `data/` (он уже есть в репозитории).
-
-```bash
-alembic upgrade head
-```
-
-### 4. Запустите бота
-
-```bash
+cp .env.example .env               # заполнить BOT_TOKEN и LLM_API_KEY
 python -m bot.main
 ```
 
-## 👤 Как пользоваться
+Файл БД `data/app.db` создаётся автоматически при первом запуске — каталог `data/` уже есть в репозитории.
 
-1. Откройте бота в Telegram и отправьте `/start`.
-2. Нажмите кнопку начала интервью.
-3. Отвечайте на вопросы о проекте: его целях, аудитории, функциях и ограничениях.
-4. Когда интервью завершится, получите ТЗ в DOCX и PDF.
-
-## 🗂️ Структура проекта
-
-```text
-bot/
-├── handlers/       # Команды и обработчики диалога
-├── keyboards/      # Клавиатуры Telegram
-├── services/       # LLM-клиент и генерация ТЗ
-├── states/         # Состояния FSM интервью
-├── utils/          # Общие утилиты, включая логирование
-├── config.py       # Настройки приложения
-└── main.py         # Точка входа и запуск polling
-tests/              # Тесты проекта
-```
-
-## 🏗️ Масштабируемая архитектура
-
-Проект постепенно разделяется на четыре слоя:
-
-- **Presentation** — aiogram routers, FSM, клавиатуры и Telegram-ответы.
-- **Application** — сценарии `CreditService` и `GenerationService`; здесь нет SQL или Redis-кода.
-- **Domain** — статусы, контракты портов и модели предметной области.
-- **Infrastructure** — SQLAlchemy/SQLite, Redis, arq, платежный провайдер и LLM-адаптеры.
-
-Новые заготовки находятся в `bot/domain/`, `bot/application/`, `bot/infrastructure/` и `bot/workers/`.
-
-### Поток генерации
-
-```mermaid
-sequenceDiagram
-    participant U as Пользователь
-    participant B as aiogram bot
-    participant DB as SQLite
-    participant R as Redis/arq
-    participant W as Worker
-    participant L as LLM API
-
-    U->>B: Завершает интервью
-    B->>DB: Проверяет пользователя и списывает кредит
-    B->>DB: Создаёт GenerationTask (pending)
-    B->>R: Публикует task_id
-    B-->>U: Задача принята
-    W->>R: Берёт задачу
-    W->>DB: status = processing
-    W->>L: Выполняет LLM-запрос
-    W->>DB: Сохраняет результат и status = completed/failed
-    W-->>U: Отправляет уведомление и документы
-```
-
-### Почему SQLite + Redis + arq
-
-- **SQLite + SQLAlchemy 2 async (aiosqlite)** — транзакции, история кредитов, платежей и генераций; не требует отдельного сервера БД.
-- **Redis** — распределённое FSM-хранилище и быстрый брокер фоновых задач.
-- **arq** — лёгкая asyncio-очередь, естественно сочетающаяся с aiogram и async SQLAlchemy.
-- **ЮKassa** — основной платёжный адаптер для РФ; интерфейс `PaymentProvider` оставляет возможность добавить Telegram Payments или Stripe.
-
-SQLite пишет в один файл и не рассчитан на высокую конкурентную запись — при росте нагрузки на одновременные списания кредитов стоит вернуться к серверной БД (PostgreSQL).
-
-Worker запускается отдельно:
+Воркер запускается отдельным процессом (требуется Redis):
 
 ```bash
 python -m bot.workers.run
 ```
 
-Текущие `GenerationTask` и `YooKassaProvider` намеренно являются скелетом: списание, webhook-проверка, генерация документов и уведомления должны быть реализованы отдельными этапами.
+## Переменные окружения
 
-## 🛣️ Roadmap
+| Переменная | Назначение |
+| --- | --- |
+| `BOT_TOKEN` | Токен бота от [@BotFather](https://t.me/BotFather) |
+| `LLM_API_KEY` | Ключ LLM-провайдера |
+| `LLM_BASE_URL` | Базовый URL OpenAI-совместимого API |
+| `LLM_MODEL` | Идентификатор модели |
+| `DATABASE_URL` | DSN SQLite, по умолчанию `sqlite+aiosqlite:///./data/app.db` |
+| `REDIS_URL` | Подключение к Redis для воркера и очереди |
+| `GENERATION_COST_CREDITS` | Стоимость одной генерации в кредитах |
+| `FREE_WELCOME_CREDITS` | Кредиты при первом запуске пользователя |
 
-1. Подключить SQLite, Alembic и миграции; реализовать регистрацию пользователя.
-2. Завершить атомарные операции кредитов и историю транзакций.
-3. Перенести FSM с Redis в production-конфигурацию и вынести worker в отдельный процесс.
-4. Реализовать `GenerationTask`: статусы, retry, идемпотентность и хранение результатов.
-5. Добавить объектное хранилище для DOCX/PDF и уведомления пользователя.
-6. Подключить ЮKassa, webhook и выдачу кредитов после подтверждённой оплаты.
-7. Добавить личный кабинет, мониторинг, метрики, rate limits и горизонтальное масштабирование.
+Полный список — в `.env.example`. `.env` в репозиторий не попадает.
 
-## ⚠️ Примечания
+## Структура проекта
 
-- Для работы нужны действующие Telegram Bot Token и API-ключ LLM-провайдера.
-- Для генерации PDF используется Unicode-шрифт, поддерживающий кириллицу (например, DejaVu Sans или Arial).
-- FSM использует хранилище в памяти: при перезапуске бота незавершённые диалоги не сохраняются.
+```text
+bot/
+├── handlers/        # /start, интервью, профиль
+├── keyboards/       # inline-клавиатуры
+├── states/          # FSM-состояния диалога
+├── services/        # LLM-клиент и генерация ТЗ
+├── domain/          # enum'ы, порты, модели предметной области
+├── application/     # сервисы кредитов и генерации
+├── infrastructure/  # SQLAlchemy/SQLite, репозитории, Redis, arq
+├── middlewares/     # сессия БД, пользователь
+├── assets/fonts/    # DejaVu Sans для кириллицы в PDF
+├── workers/         # arq-воркер
+├── config.py        # настройки из .env
+└── main.py          # точка входа
+migrations/          # Alembic
+data/                # файл SQLite
+```
+
+## Известные ограничения
+
+- FSM хранится в памяти: при перезапуске незавершённые интервью теряются (`RedisStorage` в `bot/main.py` закомментирован).
+- Воркер — скелет: `generate_tz_task` ничего не выполняет, генерация идёт в обработчике.
+- Telegram Stars не реализованы: есть модель `Payment` и кнопка «Пополнить кредиты» без обработчика.
+- Списание кредитов за генерацию не подключено; welcome-бонус начисляется в `UserMiddleware`.
+- Схема создаётся через `Base.metadata.create_all` при старте; Alembic настроен, но миграции не применяются автоматически.

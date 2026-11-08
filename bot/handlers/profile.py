@@ -24,3 +24,5 @@ async def profile_callback_handler(callback: CallbackQuery, user: User):
         reply_markup=InlineForProfileKeyboard()
     )
     await callback.answer()
+
+@router
