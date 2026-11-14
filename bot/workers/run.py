@@ -12,6 +12,7 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = get_settings().worker_max_jobs
     job_timeout = get_settings().worker_job_timeout_seconds
+    keep_result = 60 * 60 * 24 * 7  # 7 days
 
 
 if __name__ == "__main__":

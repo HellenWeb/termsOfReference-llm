@@ -34,11 +34,11 @@ def InlineForProfileKeyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 {
-                    "text": "Пополнить кредиты",
+                    "text": "💳 Пополнить кредиты",
                     "callback_data": "top_up_credits"
                 },
                 {
-                    "text": "Back <-",
+                    "text": "🔙 Назад",
                     "callback_data": "back"
                 },
             ]

@@ -8,6 +8,8 @@ from functools import lru_cache
 class WorkerContext:
     settings: Settings
     # TODO: add SQLAlchemy session factory and object storage client.
+    SQLAlcheySession: Any
+    ObjectStorageClient: Any
 
 
 async def startup(ctx: dict) -> None:

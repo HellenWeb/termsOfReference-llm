@@ -1,6 +1,5 @@
 from arq import ArqRedis
 
-
 class ArqTaskQueue:
     def __init__(self, redis: ArqRedis) -> None:
         self._redis = redis

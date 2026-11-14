@@ -16,5 +16,7 @@ class WorkerSettings:
     functions = [generate_tz_task]
     on_startup = None
     on_shutdown = None
-
-    # TODO: set redis_settings, max_jobs, job_timeout from application Settings.
+    redis_settings = None
+    max_jobs = None
+    job_timeout = None
+    keep_result = None
